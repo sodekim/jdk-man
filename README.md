@@ -17,20 +17,11 @@ Windows JDK 版本管理工具。一个轻量的 PowerShell 7+ 模块，让你�
 
 ## 安装
 
-将模块目录复制到 `PSModulePath` 下的任意位置即可自动加载：
-
 ```powershell
-$dest = "$env:USERPROFILE\Documents\PowerShell\Modules\jdk-man\1.0.0"
-New-Item $dest -ItemType Directory -Force
-Copy-Item .\jdk-man.psd1, .\jdk-man.psm1 $dest
+Install-Module -Name jdk-man
 ```
 
-安装后打开新的 PowerShell 7 窗口，`jdk` 命令即可直接使用。
-
-> 也可以不安装，在任意会话中手动导入：
-> ```powershell
-> Import-Module D:\path\to\jdk-man.psd1
-> ```
+安装后 `jdk` 命令即可直接使用（模块自动加载，无需重启或手动导入）。
 
 ## 使用
 
