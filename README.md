@@ -39,15 +39,17 @@ jdk add 17 D:\sdk\jdk\jdk-17.0.18+8
 jdk list
 ```
 
-输出示例：
+输出示例（表格格式，按版本号排序）：
 
 ```
-Available JDK versions (from C:\Users\sodekim\AppData\Local\jdk-man\jdk-config.json):
-* 17 - D:\sdk\jdk\jdk-17.0.18+8 [OK]
-  8  - D:\sdk\jdk\jdk8u482-b08  [OK]
+版本   路径                      可用   
+---------------------------------------
+*17    D:\sdk\jdk\jdk-17.0.18+8 [OK]   
+ 8     D:\sdk\jdk\jdk8u482-b08  [OK]   
 ```
 
-`*` 表示当前会话的活跃版本，`[MISSING]` 表示路径已失效。
+- `*` 表示当前会话的活跃版本
+- `[OK]` 表示路径有效，`[MISSING]` 表示路径已失效
 
 ### 临时切换（当前会话）
 
