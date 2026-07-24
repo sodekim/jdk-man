@@ -1,106 +1,122 @@
 # jdk-man
 
-Windows JDK 版本管理工具。一个轻量的 PowerShell 7+ 模块，让你在多个 JDK 安装之间快速切换。
+[English](./README.md) | [简体中文](./README.zh-CN.md)
 
-## 功能
+A lightweight Windows JDK version manager for PowerShell 7+. Register, switch,
+and remove multiple Java Development Kit installations from a single command — no
+admin prompts, no shell overlays, no fuss.
 
-- **会话级切换** — `jdk use` 仅影响当前终端窗口，关闭即恢复
-- **持久化默认版本** — `jdk default` 写入用户级 `JAVA_HOME`，重启后依然生效
-- **版本注册与移除** — `jdk add` / `jdk remove` 管理已安装的 JDK
-- **Tab 补全** — 输入 `jdk use <Tab>` 自动列出已配置的版本
-- **活跃版本标记** — `jdk list` 中用 `*` 标记当前生效的版本
+```powershell
+jdk use 17
+java -version
+```
 
-## 环境要求
+---
+
+## Features
+
+- **One command, many JDKs** — `list`, `use`, `default`, `add`, `remove`
+- **Two scopes** — `use` switches the current session only; `default` persists
+  `JAVA_HOME` and `PATH` at the Windows User level
+- **Tab completion** — version keys are completed from your config
+- **Validation gate** — only paths with a real `bin\java.exe` are accepted
+- **PATH-safe** — stale JDK `bin` entries are stripped before the new one is
+  prepended, so no duplicates pile up
+- **Zero dependencies** — pure PowerShell, no native binaries, no build step
+
+## Requirements
 
 - Windows 10 / 11
-- [PowerShell 7+](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows)（`pwsh`）
+- PowerShell 7.0 or later (`pwsh`)
+- At least one JDK installed somewhere on disk
 
-## 安装
+## Installation
+
+### From the PowerShell Gallery
 
 ```powershell
-Install-Module -Name jdk-man
+Install-Module -Name jdk-man -Repository PSGallery
 ```
 
-安装后 `jdk` 命令即可直接使用（模块自动加载，无需重启或手动导入）。
+### From source
 
-## 使用
-
-### 注册 JDK
+Clone the repo and import the module directly:
 
 ```powershell
+git clone https://github.com/sodekim/jdk-man.git
+Import-Module .\jdk-man\jdk-man.psd1
+```
+
+To make it permanent, copy `jdk-man.psd1` and `jdk-man.psm1` into one of your
+`$env:PSModulePath` directories (e.g. `~\Documents\PowerShell\Modules\jdk-man`).
+
+## Quick start
+
+```powershell
+# Register a JDK you already have on disk
 jdk add 17 D:\sdk\jdk\jdk-17.0.18+8
-```
 
-路径必须包含 `bin\java.exe`，否则会被拒绝。注册完成后会提示是否将其设为默认版本。
-
-### 列出已配置版本
-
-```powershell
+# List configured versions (active one is marked with *)
 jdk list
-```
 
-输出示例（表格格式，按版本号排序）：
+# Switch for the current session only
+jdk use 17
 
-```
-版本   路径                      可用   
----------------------------------------
-*17    D:\sdk\jdk\jdk-17.0.18+8 [OK]   
- 8     D:\sdk\jdk\jdk8u482-b08  [OK]   
-```
+# Set a persistent default across new shells
+jdk default 21
 
-- `*` 表示当前会话的活跃版本
-- `[OK]` 表示路径有效，`[MISSING]` 表示路径已失效
-
-### 临时切换（当前会话）
-
-```powershell
-jdk use 8
-```
-
-仅修改当前终端窗口的 `JAVA_HOME` 和 `PATH`，关闭窗口后自动恢复。
-
-### 设置默认版本（永久）
-
-```powershell
-jdk default 17
-```
-
-将用户级 `JAVA_HOME` 持久化为指定版本，并确保用户 `PATH` 中包含 `%JAVA_HOME%\bin`。新开的终端窗口将自动使用该版本。
-
-### 移除版本
-
-```powershell
+# Remove a version from config
 jdk remove 8
 ```
 
-从配置中删除指定版本。如果该版本恰好是当前 `JAVA_HOME`，会输出警告但不阻止删除。
+## Commands
 
-### 查看帮助
+| Command             | Scope            | Description                                                          |
+| ------------------- | ---------------- | -------------------------------------------------------------------- |
+| `jdk list`          | read-only        | Print all configured versions with availability status.             |
+| `jdk use <ver>`     | current session  | Set `JAVA_HOME` and prepend `<jdk>\bin` to the session `PATH`.       |
+| `jdk default <ver>` | User (persisted) | Set `JAVA_HOME` at the User level and ensure `%JAVA_HOME%\bin` is in user `PATH`. Also applies to the current session. |
+| `jdk add <ver> <path>` | config         | Register a JDK root (must contain `bin\java.exe`), then prompt to set it as default. |
+| `jdk remove <ver>`  | config           | Remove a version from config. Warns if it is the active `JAVA_HOME`. |
 
-```powershell
-jdk          # 无参数时显示帮助
-Get-Help jdk # PowerShell 原生帮助
+> [!NOTE]
+> `use` changes only the running shell. Close the terminal and the change is
+> gone. `default` writes to the User environment — new terminals pick it up
+> automatically.
+
+## Configuration
+
+All state lives in a single JSON file:
+
+```
+%LOCALAPPDATA%\jdk-man\jdk-config.json
 ```
 
-## 配置文件
-
-配置存储在 `%LOCALAPPDATA%\jdk-man\jdk-config.json`，格式为扁平的 JSON 键值对：
+It is a flat map of `version → JDK root path` and is auto-created as `{}` on
+first run.
 
 ```json
-{"17":"D:\\sdk\\jdk\\jdk-17.0.18+8","8":"D:\\sdk\\jdk\\jdk8u482-b08"}
+{
+  "8":  "D:\\sdk\\jdk\\jdk-1.8.0_421",
+  "17": "D:\\sdk\\jdk\\jdk-17.0.18+8",
+  "21": "D:\\sdk\\jdk\\jdk-21.0.5+11"
+}
 ```
 
-- **键**：自定义的版本标识（如 `8`、`17`、`21`、`graalvm-21`）
-- **值**：JDK 根目录的绝对路径
+You can edit this file by hand — `jdk-man` reads it on every invocation and
+drops entries that fail to parse.
 
-首次运行任意命令时，配置文件会自动创建为 `{}`。
+## Publishing
 
-## 命令速查
+A `publish.ps1` helper is included for maintainers:
 
-| 命令 | 说明 |
-|---|---|
-| `jdk list` | 列出所有已配置版本及状态 |
-| `jdk use <ver>` | 当前会话临时切换 |
-| `jdk default <ver>` | 永久设置用户级默认版本 |
-| `jdk add <ver> <path>` | 注册一个 JDK 安装路径 |
-| `jdk remove <ver>` | 从配置中移除一个版本 |
+```powershell
+./publish.ps1 -ApiKey <PSGallery-API-key>
+```
+
+It stages the manifest and module into a temp directory and calls
+`Publish-PSResource` against PSGallery.
+
+## License
+
+[MIT](./LICENSE) — © sodekim.
