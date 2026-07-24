@@ -144,13 +144,53 @@ function jdk {
                 Write-Host "No JDK versions configured. Use 'jdk add <version> <path>' to add one." -ForegroundColor Yellow
                 return
             }
-            Write-Host "Available JDK versions (from $script:ConfigPath):"
-            foreach ($kv in $config.GetEnumerator() | Sort-Object Key) {
-                $path   = $kv.Value
+
+            # Build data and calculate column widths
+            $rows = @()
+            $maxVer = 6     # Version column width
+            $maxPath = 4    # Path column width
+            $maxAvail = 7   # Available column width
+
+            foreach ($kv in $config.GetEnumerator()) {
+                $ver = $kv.Key
+                $path = $kv.Value
                 $exists = Test-Path "$path\bin\java.exe"
-                $status = if ($exists) { '[OK]' } else { '[MISSING]' }
-                $mark   = if ($env:JAVA_HOME -eq $path) { '*' } else { ' ' }
-                Write-Host "$mark $($kv.Key) - $path $status"
+                $avail = if ($exists) { '[OK]' } else { '[MISSING]' }
+                $active = ($env:JAVA_HOME -eq $path)
+
+                $verDisplay = if ($active) { "*$ver" } else { $ver }
+                $rows += [PSCustomObject]@{
+                    Ver = $verDisplay
+                    Path = $path
+                    Avail = $avail
+                }
+
+                if ($verDisplay.Length -gt $maxVer) { $maxVer = $verDisplay.Length }
+                if ($path.Length -gt $maxPath) { $maxPath = $path.Length }
+                if ($avail.Length -gt $maxAvail) { $maxAvail = $avail.Length }
+            }
+
+            # Pad Chinese header to match column width (each CJK char = 2 cells)
+            function Pad-Right([string]$s, [int]$width) {
+                $cjk = [regex]::Matches($s, '[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]').Count
+                $displayLen = $s.Length + $cjk
+                if ($displayLen -lt $width) { $s + (' ' * ($width - $displayLen)) } else { $s }
+            }
+
+            $headerVer   = Pad-Right '版本' $maxVer
+            $headerPath  = Pad-Right '路径' $maxPath
+            $headerAvail = Pad-Right '可用' $maxAvail
+
+            # Header
+            Write-Host "$headerVer $headerPath $headerAvail"
+            Write-Host ('-' * ($maxVer + 1 + $maxPath + 1 + $maxAvail))
+
+            # Data rows
+            foreach ($row in $rows | Sort-Object Ver) {
+                $colVer   = $row.Ver.PadRight($maxVer)
+                $colPath  = $row.Path.PadRight($maxPath)
+                $colAvail = $row.Avail.PadRight($maxAvail)
+                Write-Host "$colVer $colPath $colAvail"
             }
         }
 
