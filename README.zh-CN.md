@@ -13,7 +13,7 @@ java -version
 
 ## 功能特性
 
-- **一条命令，多套 JDK** —— `list`、`use`、`default`、`add`、`remove`
+- **一条命令，多套 JDK** —— `list`、`current`、`use`、`default`、`add`、`remove`
 - **两种作用域** —— `use` 仅切换当前会话；`default` 在 Windows 用户级别持久化 `JAVA_HOME` 与 `PATH`
 - **Tab 补全** —— 版本键从配置文件自动补全
 - **校验关卡** —— 仅接受真实存在 `bin\java.exe` 的路径
@@ -51,6 +51,9 @@ Import-Module .\jdk-man\jdk-man.psd1
 # 注册一个已存在于磁盘上的 JDK
 jdk add 17 D:\sdk\jdk\jdk-17.0.18+8
 
+# 查看当前激活的 JDK 版本及作用域
+jdk current
+
 # 列出所有已配置版本（当前激活版本以 * 标记）
 jdk list
 
@@ -69,6 +72,7 @@ jdk remove 8
 | 命令                 | 作用域             | 说明                                                                        |
 | -------------------- | ----------------- | --------------------------------------------------------------------------- |
 | `jdk list`           | 只读              | 打印所有已配置版本及其可用性状态。                                           |
+| `jdk current`       | 只读              | 显示当前激活的 JDK 版本、路径和作用域（会话或持久化）。                   |
 | `jdk use <ver>`      | 当前会话          | 设置 `JAVA_HOME`，并将 `<jdk>\bin` 前置到当前会话的 `PATH`。                  |
 | `jdk default <ver>`  | 用户级（持久化）  | 在用户级别设置 `JAVA_HOME`，并确保 `%JAVA_HOME%\bin` 存在于用户 `PATH` 中。同时作用于当前会话。 |
 | `jdk add <ver> <path>` | 配置            | 注册一个 JDK 根目录（必须包含 `bin\java.exe`），随后提示是否设为默认版本。      |

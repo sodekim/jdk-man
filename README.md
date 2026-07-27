@@ -15,7 +15,7 @@ java -version
 
 ## Features
 
-- **One command, many JDKs** — `list`, `use`, `default`, `add`, `remove`
+- **One command, many JDKs** — `list`, `current`, `use`, `default`, `add`, `remove`
 - **Two scopes** — `use` switches the current session only; `default` persists
   `JAVA_HOME` and `PATH` at the Windows User level
 - **Tab completion** — version keys are completed from your config
@@ -56,6 +56,9 @@ To make it permanent, copy `jdk-man.psd1` and `jdk-man.psm1` into one of your
 # Register a JDK you already have on disk
 jdk add 17 D:\sdk\jdk\jdk-17.0.18+8
 
+# Show the active JDK version and scope
+jdk current
+
 # List configured versions (active one is marked with *)
 jdk list
 
@@ -74,6 +77,7 @@ jdk remove 8
 | Command             | Scope            | Description                                                          |
 | ------------------- | ---------------- | -------------------------------------------------------------------- |
 | `jdk list`          | read-only        | Print all configured versions with availability status.             |
+| `jdk current`      | read-only        | Show active JDK version, path, and scope (session or persistent).       |
 | `jdk use <ver>`     | current session  | Set `JAVA_HOME` and prepend `<jdk>\bin` to the session `PATH`.       |
 | `jdk default <ver>` | User (persisted) | Set `JAVA_HOME` at the User level and ensure `%JAVA_HOME%\bin` is in user `PATH`. Also applies to the current session. |
 | `jdk add <ver> <path>` | config         | Register a JDK root (must contain `bin\java.exe`), then prompt to set it as default. |
