@@ -86,12 +86,13 @@ function jdk {
         Windows JDK version manager.
 
     .DESCRIPTION
-        Manage multiple JDK installations: list available versions, switch for the
-        current session, set a persistent default, add new JDKs, and remove old ones.
+        Manage multiple JDK installations: list available versions, show the active
+        JDK, switch for the current session, set a persistent default, add new JDKs,
+        and remove old ones.
         Configuration is stored in $env:LOCALAPPDATA\jdk-man\jdk-config.json.
 
     .PARAMETER Command
-        Subcommand to run: list, use, default, add, remove.
+        Subcommand to run: list, current, use, default, add, remove.
 
     .PARAMETER Version
         JDK version key as registered in config (e.g. "8", "17", "21").
@@ -102,6 +103,10 @@ function jdk {
     .EXAMPLE
         jdk list
         List all configured JDK versions with status.
+
+    .EXAMPLE
+        jdk current
+        Show the active JDK version, its path, and scope (session or persistent).
 
     .EXAMPLE
         jdk use 17
@@ -193,6 +198,52 @@ function jdk {
                 Write-Host "$colVer $colPath $colAvail"
             }
         }
+
+        'current' {
+            $javaHome = $env:JAVA_HOME
+            if (-not $javaHome) {
+                Write-Host "No JDK is currently active." -ForegroundColor Yellow
+                Write-Host "Use 'jdk use <version>' or 'jdk default <version>' to activate one." -ForegroundColor Gray
+                return
+            }
+
+            # Find which config version matches
+            $matchedVer = $null
+            foreach ($kv in $config.GetEnumerator()) {
+                if ($kv.Value.TrimEnd('\') -eq $javaHome.TrimEnd('\')) {
+                    $matchedVer = $kv.Key
+                    break
+                }
+            }
+
+            # Determine scope: check user-level JAVA_HOME
+            $userJavaHome = [Environment]::GetEnvironmentVariable('JAVA_HOME', 'User')
+            $isPersisted = ($userJavaHome -and ($userJavaHome.TrimEnd('\') -eq $javaHome.TrimEnd('\')))
+            $scope = if ($isPersisted) { 'Persistent (User)' } else { 'Session only' }
+
+            Write-Host "Version : " -NoNewline
+            if ($matchedVer) {
+                Write-Host "JDK $matchedVer" -ForegroundColor Green
+            } else {
+                Write-Host "(unmanaged)" -ForegroundColor Yellow
+            }
+            Write-Host "Path    : $javaHome"
+            Write-Host "Scope   : $scope"
+            Write-Host "Config  : " -NoNewline
+            if ($matchedVer) {
+                Write-Host $script:ConfigPath
+            } else {
+                Write-Host "(not registered in jdk-man config)" -ForegroundColor Yellow
+            }
+
+            # Show java -version output
+            $javaBin = Join-Path $javaHome 'bin\java.exe'
+            if (Test-Path $javaBin) {
+                Write-Host ''
+                & $javaBin -version
+            }
+        }
+
 
         'use' {
             if (-not $Version) { throw "Usage: jdk use <version>" }
