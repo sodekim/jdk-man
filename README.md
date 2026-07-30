@@ -112,14 +112,15 @@ drops entries that fail to parse.
 
 ## Publishing
 
-A `publish.ps1` helper is included for maintainers:
+A `release.ps1` helper is included for maintainers:
 
 ```powershell
-./publish.ps1 -ApiKey <PSGallery-API-key>
+./release.ps1 -Version "1.0.1" -ApiKey <PSGallery-API-key>
 ```
 
-It stages the manifest and module into a temp directory and calls
-`Publish-PSResource` against PSGallery.
+It bumps the module version in the manifest, creates a git tag, stages the
+manifest and module into a temp directory, calls `Publish-PSResource` against
+PSGallery, and pushes the git tag to remote.
 
 ## License
 

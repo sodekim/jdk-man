@@ -103,13 +103,13 @@ jdk remove 8
 
 ## 发布
 
-仓库附带一个 `publish.ps1` 脚本，供维护者使用：
+仓库附带一个 `release.ps1` 脚本，供维护者使用：
 
 ```powershell
-./publish.ps1 -ApiKey <PSGallery-API-key>
+./release.ps1 -Version "1.0.1" -ApiKey <PSGallery-API-key>
 ```
 
-它会将清单和模块暂存到临时目录中，随后调用 `Publish-PSResource` 发布到 PSGallery。
+它会更新模块清单中的版本号、创建 git tag、将清单和模块暂存到临时目录后调用 `Publish-PSResource` 发布到 PSGallery，并推送 git tag 到远程仓库。
 
 ## 许可证
 
