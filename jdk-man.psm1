@@ -318,18 +318,63 @@ function jdk {
 
 # ── Tab completion ────────────────────────────────────────────────────
 
-Register-ArgumentCompleter -CommandName jdk -ParameterName Version -ScriptBlock {
+$jdkCompleter = [scriptblock]::Create(@'
     param($wordToComplete, $commandAst, $cursorPosition)
-    $cfgPath = Join-Path $env:LOCALAPPDATA 'jdk-man\jdk-config.json'
-    if (-not (Test-Path $cfgPath)) { return }
-    $content = [System.IO.File]::ReadAllText($cfgPath, [System.Text.UTF8Encoding]::new($false))
-    if ([string]::IsNullOrWhiteSpace($content)) { return }
-    ($content | ConvertFrom-Json -AsHashtable).Keys |
+
+    $elements = @($commandAst.CommandElements)
+    $subcommands = @('list', 'current', 'use', 'default', 'add', 'remove')
+    $versionSubcommands = @('use', 'default', 'add', 'remove')
+
+    # elements[0] is always "jdk"
+    if ($elements.Count -eq 1) {
+        # "jdk <TAB>" — complete subcommands
+        $subcommands |
+            Where-Object { $_ -like "$wordToComplete*" } |
+            Sort-Object |
+            ForEach-Object {
+                [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+            }
+        return
+    }
+
+    # elements.Count >= 2 — check whether elements[1] is a known subcommand
+    $firstArg = $elements[1].Extent.Text
+
+    if ($firstArg -in $subcommands) {
+        # Subcommand already fully typed
+        if ($firstArg -in $versionSubcommands) {
+            # "jdk use <TAB>" or "jdk use 1<TAB>" — complete versions from config
+            # When $wordToComplete equals the subcommand itself (no space before TAB),
+            # treat the version prefix as empty to show all versions
+            $versionPrefix = if ($wordToComplete -eq $firstArg) { '' } else { $wordToComplete }
+            $cfgPath = Join-Path $env:LOCALAPPDATA 'jdk-man\jdk-config.json'
+            if (-not (Test-Path $cfgPath)) { return }
+            try {
+                $content = [System.IO.File]::ReadAllText($cfgPath, [System.Text.UTF8Encoding]::new($false))
+            } catch { return }
+            if ([string]::IsNullOrWhiteSpace($content)) { return }
+            try {
+                ($content | ConvertFrom-Json -AsHashtable).Keys |
+                    Where-Object { $_ -like "$versionPrefix*" } |
+                    Sort-Object |
+                    ForEach-Object {
+                        [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+                    }
+            } catch { }
+        }
+        # Else: "jdk list <TAB>" or "jdk add 17 <TAB>" — let default completion handle it
+        return
+    }
+
+    # elements[1] is NOT a full subcommand — "jdk u<TAB>", complete subcommands
+    $subcommands |
         Where-Object { $_ -like "$wordToComplete*" } |
         Sort-Object |
         ForEach-Object {
             [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
         }
-}
+'@)
+
+Register-ArgumentCompleter -CommandName jdk -ScriptBlock $jdkCompleter
 
 Export-ModuleMember -Function jdk
