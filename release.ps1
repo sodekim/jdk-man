@@ -1,0 +1,39 @@
+param(
+    [Parameter(Mandatory, Position = 0)]
+    [string]$Version,
+
+    [Parameter(Mandatory)]
+    [string]$ApiKey
+)
+
+$ErrorActionPreference = 'Stop'
+
+# Update module version in manifest
+$manifestPath = Join-Path $PSScriptRoot 'jdk-man.psd1'
+$manifest = Get-Content $manifestPath -Raw
+$manifest = $manifest -replace "(?<=ModuleVersion\s*=\s*')[^']*'", "'$Version'"
+Set-Content $manifestPath $manifest -NoNewline
+Write-Host "Module version updated to $Version." -ForegroundColor Green
+
+# Create git tag locally
+$tag = "v$Version"
+git tag $tag
+Write-Host "Created tag $tag." -ForegroundColor Green
+
+# Publish to PSGallery
+$tmp = Join-Path $env:TEMP 'jdk-man'
+Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+New-Item $tmp -ItemType Directory -Force | Out-Null
+Copy-Item "$PSScriptRoot\jdk-man.psd1", "$PSScriptRoot\jdk-man.psm1" $tmp
+
+try {
+    Publish-PSResource -Path $tmp -ApiKey $ApiKey -Repository PSGallery
+    Write-Host "Published successfully." -ForegroundColor Green
+
+    # Push tag to remote
+    git push origin $tag
+    Write-Host "Tag $tag pushed to remote." -ForegroundColor Green
+}
+finally {
+    Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+}
