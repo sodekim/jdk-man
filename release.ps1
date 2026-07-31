@@ -15,10 +15,12 @@ $manifest = $manifest -replace "(?<=ModuleVersion\s*=\s*')[^']*", $Version
 Set-Content $manifestPath $manifest -NoNewline
 Write-Host "Module version updated to $Version." -ForegroundColor Green
 
-# Create git tag locally
+# Commit version bump and create git tag
 $tag = "v$Version"
+git add $manifestPath
+git commit -m "chore(release): v$Version"
 git tag $tag
-Write-Host "Created tag $tag." -ForegroundColor Green
+Write-Host "Committed and tagged $tag." -ForegroundColor Green
 
 # Publish to PSGallery
 $tmp = Join-Path $env:TEMP 'jdk-man'
