@@ -90,7 +90,7 @@ The sole criterion for a valid JDK path: `<path>\bin\java.exe` must exist. Enfor
 `list` includes an internal `Pad-Right` helper that manually computes CJK character display width (Unicode ranges `\u4e00-\u9fff` etc., each char = 2 cells) for proper Chinese header alignment.
 
 ### Tab completion
-`Register-ArgumentCompleter` on `jdk`'s `Version` parameter reads version keys from config JSON for autocomplete.
+Two classes (`JdkSubcommandCompleter`, `JdkVersionCompleter`) implement `IArgumentCompleter` and are bound via `[ArgumentCompleter()]` attributes on the `jdk` function's `Command` and `Version` parameters. The subcommand completer returns static command names; the version completer reads version keys from config JSON. Class-based completers are strongly typed (no stray output leaks into PSReadLine rendering) and attribute-bound (no duplicate registration on `Import-Module -Force`).
 
 ### Comment-based help
 The `jdk` function uses PowerShell comment-based help. Running `jdk` with no arguments is equivalent to `Get-Help jdk`.
