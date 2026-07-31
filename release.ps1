@@ -1,12 +1,12 @@
 param(
     [Parameter(Mandatory, Position = 0)]
-    [string]$Version,
-
-    [Parameter(Mandatory)]
-    [string]$ApiKey
+    [string]$Version
 )
 
 $ErrorActionPreference = 'Stop'
+
+$ApiKey = $env:POWERSHELL_GALLERY_API_KEY
+if (-not $ApiKey) { throw "Environment variable POWERSHELL_GALLERY_API_KEY is not set." }
 
 # Update module version in manifest
 $manifestPath = Join-Path $PSScriptRoot 'jdk-man.psd1'

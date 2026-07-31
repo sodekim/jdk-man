@@ -51,7 +51,7 @@ jdk add 8 D:\path\to\jdk8
 jdk remove 8
 
 # Publish to PSGallery (requires API key)
-./release.ps1 -Version "1.0.1" -ApiKey <key>
+./release.ps1 -Version "1.0.1"
 ```
 
 ## Code Conventions
