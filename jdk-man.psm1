@@ -57,23 +57,40 @@ function Get-JdkConfig {
         Write-Host "Created config: $script:ConfigPath" -ForegroundColor Gray
         return @{}
     }
-    try {
-        $content = [System.IO.File]::ReadAllText($script:ConfigPath, [System.Text.UTF8Encoding]::new($false))
-        if ([string]::IsNullOrWhiteSpace($content)) { return @{} }
-        $hash = $content | ConvertFrom-Json -AsHashtable
-        foreach ($k in @($hash.Keys)) {
-            if ($hash[$k] -isnot [string]) {
-                Write-Warning "Invalid entry for version '$k' in config, removing."
-                $hash.Remove($k)
-            }
-        }
-        return $hash
-    }
-    catch {
-        Write-Warning "Failed to parse config, resetting to empty. Error: $_"
+
+    $content = [System.IO.File]::ReadAllText($script:ConfigPath, [System.Text.UTF8Encoding]::new($false))
+    if ([string]::IsNullOrWhiteSpace($content)) {
         [System.IO.File]::WriteAllText($script:ConfigPath, '{}', [System.Text.UTF8Encoding]::new($false))
         return @{}
     }
+
+    try {
+        $hash = $content | ConvertFrom-Json -AsHashtable
+        if ($hash -isnot [hashtable]) {
+            throw 'Config root must be a JSON object.'
+        }
+    }
+    catch {
+        # Never silently wipe user data: keep a backup before resetting.
+        $backupPath = "$script:ConfigPath.bak"
+        Write-Warning "Failed to parse config. Backing up to '$backupPath' and resetting to empty. Error: $_"
+        [System.IO.File]::Copy($script:ConfigPath, $backupPath, $true)
+        [System.IO.File]::WriteAllText($script:ConfigPath, '{}', [System.Text.UTF8Encoding]::new($false))
+        return @{}
+    }
+
+    # Drop invalid entries and persist the cleanup so the warning is honest.
+    $changed = $false
+    foreach ($k in @($hash.Keys)) {
+        if ($hash[$k] -isnot [string] -or [string]::IsNullOrWhiteSpace($hash[$k])) {
+            Write-Warning "Invalid entry for version '$k' in config, removing."
+            $hash.Remove($k)
+            $changed = $true
+        }
+    }
+    if ($changed) { Set-JdkConfig $hash }
+
+    return $hash
 }
 
 function Set-JdkConfig([hashtable]$Hash) {
@@ -84,20 +101,33 @@ function Set-JdkConfig([hashtable]$Hash) {
 # ── PATH helpers ──────────────────────────────────────────────────────
 
 function Update-SessionPath([string]$NewBin, [hashtable]$Config) {
-    $knownBins = foreach ($p in $Config.Values) {
-        $bin = Join-Path $p 'bin'
-        if ($bin -ne $NewBin) { $bin }
-    }
-
     $variablePatterns = @('%JAVA_HOME%\bin', '%JAVA_HOME%/bin')
+
+    # All configured JDK bin dirs — including $NewBin itself — are stripped
+    # from PATH before $NewBin is prepended exactly once. Without this, a bin
+    # already present in PATH survives the filter and duplicates pile up on
+    # repeated switches to the same version.
+    $knownBins = foreach ($p in $Config.Values) {
+        if ([string]::IsNullOrWhiteSpace($p)) { continue }
+        try {
+            [IO.Path]::GetFullPath((Join-Path $p 'bin')).TrimEnd('\', '/')
+        } catch {
+            continue
+        }
+    }
 
     $filtered = ($env:Path -split ';') | Where-Object {
         $item = $_
         if (-not $item) { return $false }
-        if ($item -in $knownBins) { return $false }
         foreach ($pat in $variablePatterns) {
             if ($item -like $pat) { return $false }
         }
+        try {
+            $full = [IO.Path]::GetFullPath($item).TrimEnd('\', '/')
+        } catch {
+            return $true
+        }
+        if ($full -in $knownBins) { return $false }
         $true
     }
 
