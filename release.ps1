@@ -11,7 +11,7 @@ if (-not $ApiKey) { throw "Environment variable POWERSHELL_GALLERY_API_KEY is no
 # Update module version in manifest
 $manifestPath = Join-Path $PSScriptRoot 'jdk-man.psd1'
 $manifest = Get-Content $manifestPath -Raw
-$manifest = $manifest -replace "(?<=ModuleVersion\s*=\s*')[^']*'", "'$Version'"
+$manifest = $manifest -replace "(?<=ModuleVersion\s*=\s*')[^']*", $Version
 Set-Content $manifestPath $manifest -NoNewline
 Write-Host "Module version updated to $Version." -ForegroundColor Green
 
