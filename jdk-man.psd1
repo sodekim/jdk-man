@@ -5,7 +5,7 @@
     Author            = 'sodekim'
     CompanyName       = 'sodekim'
     Copyright         = '(c) 2026 sodekim. All rights reserved.'
-    Description       = 'Windows JDK version manager: list, use, default, add, remove.'
+    Description       = 'Windows JDK version manager: list, current, use, default, add, remove.'
     PowerShellVersion = '7.0'
     FunctionsToExport = @('jdk')
     CmdletsToExport   = @()
@@ -16,7 +16,7 @@
             Tags         = @('jdk', 'java', 'version-manager', 'windows', 'java-home')
             ProjectUri   = 'https://github.com/sodekim/jdk-man'
             LicenseUri   = 'https://github.com/sodekim/jdk-man/blob/main/LICENSE'
-            ReleaseNotes = 'Initial release: list, use, default, add, remove with tab completion.'
+            ReleaseNotes = 'Initial release: list, current, use, default, add, remove with tab completion.'
         }
     }
 }
