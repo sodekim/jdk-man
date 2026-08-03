@@ -24,7 +24,7 @@ jdk <command> [args]
 - **Session scope** (`use`): modifies only the current process environment; lost on terminal close.
 - **User scope** (`default`): writes to registry via `[Environment]::SetEnvironmentVariable(..., "User")`; new terminals pick it up automatically. Also ensures `%JAVA_HOME%\bin` is at the front of the user PATH.
 
-**No build system, no dependencies, no test framework** — all logic lives in a single `.psm1` file (~340 lines).
+**No build system, no dependencies, no test framework** — all logic lives in a single `.psm1` file (~390 lines).
 
 ## Key Directories
 
@@ -90,7 +90,9 @@ The sole criterion for a valid JDK path: `<path>\bin\java.exe` must exist. Enfor
 `list` includes an internal `Pad-Right` helper that manually computes CJK character display width (Unicode ranges `\u4e00-\u9fff` etc., each char = 2 cells) for proper Chinese header alignment.
 
 ### Tab completion
-`Register-ArgumentCompleter` on `jdk`'s `Version` parameter reads version keys from config JSON for autocomplete.
+A module-private `Complete-JdkCommand` function, registered via
+`Register-ArgumentCompleter` on the `jdk` command, completes subcommands and —
+for `use`/`default`/`add`/`remove` — version keys read from the config JSON.
 
 ### Comment-based help
 The `jdk` function uses PowerShell comment-based help. Running `jdk` with no arguments is equivalent to `Get-Help jdk`.

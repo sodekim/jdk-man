@@ -18,7 +18,7 @@ java -version
 - **One command, many JDKs** — `list`, `current`, `use`, `default`, `add`, `remove`
 - **Two scopes** — `use` switches the current session only; `default` persists
   `JAVA_HOME` and `PATH` at the Windows User level
-- **Tab completion** — version keys are completed from your config
+- **Tab completion** — subcommands and version keys are completed from your config
 - **Validation gate** — only paths with a real `bin\java.exe` are accepted
 - **PATH-safe** — stale JDK `bin` entries are stripped before the new one is
   prepended, so no duplicates pile up
@@ -77,10 +77,10 @@ jdk remove 8
 | Command             | Scope            | Description                                                          |
 | ------------------- | ---------------- | -------------------------------------------------------------------- |
 | `jdk list`          | read-only        | Print all configured versions with availability status.             |
-| `jdk current`      | read-only        | Show active JDK version, path, and scope (session or persistent).       |
+| `jdk current`      | read-only        | Show active JDK version, path, and scope (session or persistent), its config registration, and `java -version` output. |
 | `jdk use <ver>`     | current session  | Set `JAVA_HOME` and prepend `<jdk>\bin` to the session `PATH`.       |
 | `jdk default <ver>` | User (persisted) | Set `JAVA_HOME` at the User level and ensure `%JAVA_HOME%\bin` is in user `PATH`. Also applies to the current session. |
-| `jdk add <ver> <path>` | config         | Register a JDK root (must contain `bin\java.exe`), then prompt to set it as default. |
+| `jdk add <ver> <path>` | config         | Register a JDK root (must contain `bin\java.exe`), then prompt to set it as default. Overwrites an existing version after a warning. |
 | `jdk remove <ver>`  | config           | Remove a version from config. Warns if it is the active `JAVA_HOME`. |
 
 > [!NOTE]
@@ -107,8 +107,9 @@ first run.
 }
 ```
 
-You can edit this file by hand — `jdk-man` reads it on every invocation and
-drops entries that fail to parse.
+You can edit this file by hand — `jdk-man` reads it on every invocation, drops
+entries that fail to parse, and backs up a corrupt file to `jdk-config.json.bak`
+before resetting it.
 
 ## Publishing
 
@@ -118,9 +119,12 @@ A `release.ps1` helper is included for maintainers:
 ./release.ps1 -Version "1.0.1" -ApiKey <PSGallery-API-key>
 ```
 
-It bumps the module version in the manifest, creates a git tag, stages the
-manifest and module into a temp directory, calls `Publish-PSResource` against
-PSGallery, and pushes the git tag to remote.
+It bumps the module version in the manifest, commits the bump, creates a git
+tag, stages the manifest and module into a temp directory, calls
+`Publish-PSResource` against PSGallery, and pushes the git tag to remote.
+`Publish-PSResource` ships with PowerShell 7.4+ (via the
+`Microsoft.PowerShell.PSResourceGet` module); on older 7.x install that module
+first.
 
 ## License
 

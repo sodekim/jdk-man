@@ -15,7 +15,7 @@ java -version
 
 - **一条命令，多套 JDK** —— `list`、`current`、`use`、`default`、`add`、`remove`
 - **两种作用域** —— `use` 仅切换当前会话；`default` 在 Windows 用户级别持久化 `JAVA_HOME` 与 `PATH`
-- **Tab 补全** —— 版本键从配置文件自动补全
+- **Tab 补全** —— 子命令与版本键从配置文件自动补全
 - **校验关卡** —— 仅接受真实存在 `bin\java.exe` 的路径
 - **PATH 安全** —— 在前置新 `bin` 前会清除旧 JDK `bin` 条目，不会累积重复项
 - **零依赖** —— 纯 PowerShell，无原生二进制，无构建步骤
@@ -72,10 +72,10 @@ jdk remove 8
 | 命令                 | 作用域             | 说明                                                                        |
 | -------------------- | ----------------- | --------------------------------------------------------------------------- |
 | `jdk list`           | 只读              | 打印所有已配置版本及其可用性状态。                                           |
-| `jdk current`       | 只读              | 显示当前激活的 JDK 版本、路径和作用域（会话或持久化）。                   |
+| `jdk current`       | 只读              | 显示当前激活的 JDK 版本、路径和作用域（会话或持久化），以及配置注册信息和 `java -version` 输出。 |
 | `jdk use <ver>`      | 当前会话          | 设置 `JAVA_HOME`，并将 `<jdk>\bin` 前置到当前会话的 `PATH`。                  |
 | `jdk default <ver>`  | 用户级（持久化）  | 在用户级别设置 `JAVA_HOME`，并确保 `%JAVA_HOME%\bin` 存在于用户 `PATH` 中。同时作用于当前会话。 |
-| `jdk add <ver> <path>` | 配置            | 注册一个 JDK 根目录（必须包含 `bin\java.exe`），随后提示是否设为默认版本。      |
+| `jdk add <ver> <path>` | 配置            | 注册一个 JDK 根目录（必须包含 `bin\java.exe`），随后提示是否设为默认版本；若版本已存在会先警告再覆盖。 |
 | `jdk remove <ver>`   | 配置              | 从配置中移除某版本。若该版本是当前激活的 `JAVA_HOME`，会给出警告。              |
 
 > [!NOTE]
@@ -99,7 +99,7 @@ jdk remove 8
 }
 ```
 
-你也可以手动编辑此文件 —— `jdk-man` 每次调用都会重新读取，并丢弃解析失败的条目。
+你也可以手动编辑此文件 —— `jdk-man` 每次调用都会重新读取，丢弃解析失败的条目；若整个文件损坏，会先备份为 `jdk-config.json.bak` 再重置。
 
 ## 发布
 
@@ -109,7 +109,7 @@ jdk remove 8
 ./release.ps1 -Version "1.0.1" -ApiKey <PSGallery-API-key>
 ```
 
-它会更新模块清单中的版本号、创建 git tag、将清单和模块暂存到临时目录后调用 `Publish-PSResource` 发布到 PSGallery，并推送 git tag 到远程仓库。
+它会更新模块清单中的版本号并提交该变更、创建 git tag、将清单和模块暂存到临时目录后调用 `Publish-PSResource` 发布到 PSGallery，并推送 git tag 到远程仓库。`Publish-PSResource` 随 PowerShell 7.4+ 内置（`Microsoft.PowerShell.PSResourceGet` 模块）；更早的 7.x 需先安装该模块。
 
 ## 许可证
 
