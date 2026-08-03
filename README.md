@@ -116,15 +116,16 @@ before resetting it.
 A `release.ps1` helper is included for maintainers:
 
 ```powershell
-./release.ps1 -Version "1.0.1" -ApiKey <PSGallery-API-key>
+$env:POWERSHELL_GALLERY_API_KEY = "<PSGallery-API-key>"
+./release.ps1 -Version "1.0.1"
 ```
 
 It bumps the module version in the manifest, commits the bump, creates a git
 tag, stages the manifest and module into a temp directory, calls
-`Publish-PSResource` against PSGallery, and pushes the git tag to remote.
-`Publish-PSResource` ships with PowerShell 7.4+ (via the
-`Microsoft.PowerShell.PSResourceGet` module); on older 7.x install that module
-first.
+`Publish-PSResource` against PSGallery, and pushes the git tag to remote — each
+git step aborts the release on failure. `Publish-PSResource` ships with
+PowerShell 7.4+ (via the `Microsoft.PowerShell.PSResourceGet` module); on older
+7.x install that module first.
 
 ## License
 

@@ -1,5 +1,50 @@
 # jdk-man.psm1 — Windows JDK version manager (PowerShell 7+ module)
 
+# ── Tab completion (class-based IArgumentCompleter) ──────────────────
+# Class-based completers are strongly typed (no stray output can leak
+# into PSReadLine's rendering) and are bound to the parameter via
+# [ArgumentCompleter()], so Import-Module -Force never duplicates them.
+
+class JdkSubcommandCompleter : System.Management.Automation.IArgumentCompleter {
+    [System.Collections.Generic.IEnumerable[System.Management.Automation.CompletionResult]] CompleteArgument(
+        [string]$commandName,
+        [string]$parameterName,
+        [string]$wordToComplete,
+        [System.Management.Automation.Language.CommandAst]$commandAst,
+        [System.Collections.IDictionary]$fakeBoundParameters
+    ) {
+        $results = [System.Collections.Generic.List[System.Management.Automation.CompletionResult]]::new()
+        foreach ($cmd in (@('list', 'current', 'use', 'default', 'add', 'remove') |
+                          Where-Object { $_ -like "$wordToComplete*" } | Sort-Object)) {
+            $results.Add([System.Management.Automation.CompletionResult]::new($cmd, $cmd, 'ParameterValue', $cmd))
+        }
+        return $results
+    }
+}
+
+class JdkVersionCompleter : System.Management.Automation.IArgumentCompleter {
+    [System.Collections.Generic.IEnumerable[System.Management.Automation.CompletionResult]] CompleteArgument(
+        [string]$commandName,
+        [string]$parameterName,
+        [string]$wordToComplete,
+        [System.Management.Automation.Language.CommandAst]$commandAst,
+        [System.Collections.IDictionary]$fakeBoundParameters
+    ) {
+        $results = [System.Collections.Generic.List[System.Management.Automation.CompletionResult]]::new()
+        try {
+            $cfgPath = Join-Path $env:LOCALAPPDATA 'jdk-man\jdk-config.json'
+            if (-not (Test-Path $cfgPath)) { return $results }
+            $content = [System.IO.File]::ReadAllText($cfgPath, [System.Text.UTF8Encoding]::new($false))
+            if ([string]::IsNullOrWhiteSpace($content)) { return $results }
+            $hash = $content | ConvertFrom-Json -AsHashtable
+            foreach ($key in ($hash.Keys | Where-Object { $_ -like "$wordToComplete*" } | Sort-Object)) {
+                $results.Add([System.Management.Automation.CompletionResult]::new($key, $key, 'ParameterValue', $key))
+            }
+        } catch { }
+        return $results
+    }
+}
+
 $script:ConfigDir  = Join-Path $env:LOCALAPPDATA 'jdk-man'
 $script:ConfigPath = Join-Path $script:ConfigDir 'jdk-config.json'
 
@@ -12,25 +57,39 @@ function Get-JdkConfig {
         Write-Host "Created config: $script:ConfigPath" -ForegroundColor Gray
         return @{}
     }
+    $content = [System.IO.File]::ReadAllText($script:ConfigPath, [System.Text.UTF8Encoding]::new($false))
+    if ([string]::IsNullOrWhiteSpace($content)) {
+        [System.IO.File]::WriteAllText($script:ConfigPath, '{}', [System.Text.UTF8Encoding]::new($false))
+        return @{}
+    }
+
     try {
-        $content = [System.IO.File]::ReadAllText($script:ConfigPath, [System.Text.UTF8Encoding]::new($false))
-        if ([string]::IsNullOrWhiteSpace($content)) { return @{} }
         $hash = $content | ConvertFrom-Json -AsHashtable
-        foreach ($k in @($hash.Keys)) {
-            if ($hash[$k] -isnot [string]) {
-                Write-Warning "Invalid entry for version '$k' in config, removing."
-                $hash.Remove($k)
-            }
+        if ($hash -isnot [hashtable]) {
+            throw 'Config root must be a JSON object.'
         }
-        return $hash
     }
     catch {
+        # Never silently wipe user data: keep a backup before resetting.
         $backupPath = "$script:ConfigPath.bak"
-        Write-Warning "Failed to parse config, backing up to $backupPath and resetting to empty. Error: $_"
+        Write-Warning "Failed to parse config. Backing up to '$backupPath' and resetting to empty. Error: $_"
         [System.IO.File]::Copy($script:ConfigPath, $backupPath, $true)
         [System.IO.File]::WriteAllText($script:ConfigPath, '{}', [System.Text.UTF8Encoding]::new($false))
         return @{}
     }
+
+    # Drop invalid entries and persist the cleanup so the warning is honest.
+    $changed = $false
+    foreach ($k in @($hash.Keys)) {
+        if ($hash[$k] -isnot [string] -or [string]::IsNullOrWhiteSpace($hash[$k])) {
+            Write-Warning "Invalid entry for version '$k' in config, removing."
+            $hash.Remove($k)
+            $changed = $true
+        }
+    }
+    if ($changed) { Set-JdkConfig $hash }
+
+    return $hash
 }
 
 function Set-JdkConfig([hashtable]$Hash) {
@@ -46,20 +105,33 @@ function Test-SamePath([string]$PathA, [string]$PathB) {
 }
 
 function Update-SessionPath([string]$NewBin, [hashtable]$Config) {
-    $knownBins = foreach ($p in $Config.Values) {
-        $bin = Join-Path $p 'bin'
-        if ($bin -ne $NewBin) { $bin }
-    }
-
     $variablePatterns = @('%JAVA_HOME%\bin', '%JAVA_HOME%/bin')
+
+    # All configured JDK bin dirs — including $NewBin itself — are stripped
+    # from PATH before $NewBin is prepended exactly once. Without this, a bin
+    # already present in PATH survives the filter and duplicates pile up on
+    # repeated switches to the same version.
+    $knownBins = foreach ($p in $Config.Values) {
+        if ([string]::IsNullOrWhiteSpace($p)) { continue }
+        try {
+            [IO.Path]::GetFullPath((Join-Path $p 'bin')).TrimEnd('\', '/')
+        } catch {
+            continue
+        }
+    }
 
     $filtered = ($env:Path -split ';') | Where-Object {
         $item = $_
         if (-not $item) { return $false }
-        if ($item -in $knownBins) { return $false }
         foreach ($pat in $variablePatterns) {
             if ($item -like $pat) { return $false }
         }
+        try {
+            $full = [IO.Path]::GetFullPath($item).TrimEnd('\', '/')
+        } catch {
+            return $true
+        }
+        if ($full -in $knownBins) { return $false }
         $true
     }
 
@@ -133,9 +205,11 @@ function jdk {
     #>
     param(
         [Parameter(Position = 0)]
+        [ArgumentCompleter([JdkSubcommandCompleter])]
         [string]$Command,
 
         [Parameter(Position = 1)]
+        [ArgumentCompleter([JdkVersionCompleter])]
         [string]$Version,
 
         [Parameter(ValueFromRemainingArguments)]
@@ -322,72 +396,5 @@ function jdk {
         }
     }
 }
-
-# ── Tab completion ────────────────────────────────────────────────────
-
-$script:JdkSubcommands = @('list', 'current', 'use', 'default', 'add', 'remove')
-$script:JdkVersionSubcommands = @('use', 'default', 'add', 'remove')
-
-# Side-effect-free version-key reader (completion must never create the config file)
-function Get-JdkVersionKeys {
-    if (-not (Test-Path $script:ConfigPath)) { return }
-    try {
-        $content = [System.IO.File]::ReadAllText($script:ConfigPath, [System.Text.UTF8Encoding]::new($false))
-        if ([string]::IsNullOrWhiteSpace($content)) { return }
-        return ($content | ConvertFrom-Json -AsHashtable).Keys
-    }
-    catch {
-        return
-    }
-}
-
-function Complete-Subcommand([string]$Prefix) {
-    $script:JdkSubcommands |
-        Where-Object { $_ -like "$Prefix*" } |
-        Sort-Object |
-        ForEach-Object {
-            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
-        }
-}
-
-# Runs in module scope, so it reuses $script:ConfigPath and the helpers above
-function Complete-JdkCommand {
-    param($wordToComplete, $commandAst, $cursorPosition)
-
-    $elements = @($commandAst.CommandElements)
-
-    # elements[0] is always "jdk"
-    if ($elements.Count -eq 1) {
-        # "jdk <TAB>" — complete subcommands
-        Complete-Subcommand $wordToComplete
-        return
-    }
-
-    # elements.Count >= 2 — check whether elements[1] is a known subcommand
-    $firstArg = $elements[1].Extent.Text
-
-    if ($firstArg -in $script:JdkSubcommands) {
-        # Subcommand already fully typed
-        if ($firstArg -in $script:JdkVersionSubcommands) {
-            # "jdk use <TAB>" or "jdk use 1<TAB>" — complete versions from config
-            # When $wordToComplete equals the subcommand itself (no space before TAB),
-            # treat the version prefix as empty to show all versions
-            $versionPrefix = if ($wordToComplete -eq $firstArg) { '' } else { $wordToComplete }
-            Get-JdkVersionKeys |
-                Where-Object { $_ -like "$versionPrefix*" } |
-                Sort-Object |
-                ForEach-Object {
-                    [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
-                }
-        }
-        # Else: "jdk list <TAB>" or "jdk add 17 <TAB>" — let default completion handle it
-        return
-    }
-
-    # elements[1] is NOT a full subcommand — "jdk u<TAB>", complete subcommands
-    Complete-Subcommand $wordToComplete
-}
-
-Register-ArgumentCompleter -CommandName jdk -ScriptBlock ${function:Complete-JdkCommand}
 
 Export-ModuleMember -Function jdk

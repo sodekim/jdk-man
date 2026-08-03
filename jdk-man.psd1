@@ -1,6 +1,6 @@
 @{
     RootModule        = 'jdk-man.psm1'
-    ModuleVersion     = '1.0.0'
+    ModuleVersion     = '1.0.1'
     GUID              = 'd4e5f6a7-b8c9-4d0e-af12-3456789abcde'
     Author            = 'sodekim'
     CompanyName       = 'sodekim'

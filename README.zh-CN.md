@@ -106,10 +106,11 @@ jdk remove 8
 仓库附带一个 `release.ps1` 脚本，供维护者使用：
 
 ```powershell
-./release.ps1 -Version "1.0.1" -ApiKey <PSGallery-API-key>
+$env:POWERSHELL_GALLERY_API_KEY = "<PSGallery-API-key>"
+./release.ps1 -Version "1.0.1"
 ```
 
-它会更新模块清单中的版本号并提交该变更、创建 git tag、将清单和模块暂存到临时目录后调用 `Publish-PSResource` 发布到 PSGallery，并推送 git tag 到远程仓库。`Publish-PSResource` 随 PowerShell 7.4+ 内置（`Microsoft.PowerShell.PSResourceGet` 模块）；更早的 7.x 需先安装该模块。
+它会更新模块清单中的版本号并提交该变更、创建 git tag、将清单和模块暂存到临时目录后调用 `Publish-PSResource` 发布到 PSGallery，并推送 git tag 到远程仓库——每一步 git 操作失败都会中止发布。`Publish-PSResource` 随 PowerShell 7.4+ 内置（`Microsoft.PowerShell.PSResourceGet` 模块）；更早的 7.x 需先安装该模块。
 
 ## 许可证
 
